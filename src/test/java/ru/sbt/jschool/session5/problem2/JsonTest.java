@@ -1,13 +1,22 @@
 package ru.sbt.jschool.session5.problem2;
 
 import org.junit.Test;
+
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.zip.DataFormatException;
+
 import static org.junit.Assert.assertEquals;
 
 public class JsonTest {
     @Test
     public void testMarshal() {
-        assertEquals("{\"barCalendar\":\"05.04.2018\"," +
-                "\"barDate\":\"05.04.2018\"," +
+        JsonFormatter jsonFormatter = new JsonFormatter();
+        jsonFormatter.addTypeExtension(BigDecimal.class, (obj) -> {return ((BigDecimal)obj).pow(2).toString();});
+        assertEquals("{\"barBigDecimal\":\"25\"," +
+                "\"barCalendar\":\"06.04.2018\"," +
+                "\"barDate\":\"06.04.2018\"," +
                 "\"barDouble\":0.1," +
                 "\"barBoolean\":true," +
                 "\"barInteger\":1," +
@@ -16,7 +25,6 @@ public class JsonTest {
                 "\"barShort\":15," +
                 "\"barCharacter\":\"a\"," +
                 "\"barByte\":117," +
-                "\"barMyType\":42," +
                 "\"barString\":\"barString\"," +
                 "\"barChangedName\":666," +
                 "\"bar_int\":1," +
@@ -57,14 +65,14 @@ public class JsonTest {
                     "}" +
                 "]," +
                 "\"protectedString\":\"BaseBase\"," +
-                "\"privateString\":\"BaseBase\"}", Json.marshal(new Bar()));
+                "\"privateString\":\"BaseBase\"}", jsonFormatter.format(new Bar()));
     }
 
     @Test
     public void testNullObjectMarshall() {
         boolean isExepted = false;
         try {
-            Json.marshal(null);
+            new JsonFormatter().format(null);
         } catch (RuntimeException e) {
             isExepted = true;
         }

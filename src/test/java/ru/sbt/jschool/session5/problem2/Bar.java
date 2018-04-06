@@ -1,5 +1,6 @@
 package ru.sbt.jschool.session5.problem2;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -17,6 +18,7 @@ public class Bar extends BaseBase{
     }
 
     transient Integer barTransientInt = 666;
+    private BigDecimal barBigDecimal = new BigDecimal(5);
     Calendar barCalendar = Calendar.getInstance();
     Date barDate = barCalendar.getTime();
     public Double barDouble = 0.1d;
@@ -27,8 +29,8 @@ public class Bar extends BaseBase{
     private Short barShort = 15;
     private Character barCharacter = 'a';
     private Byte barByte = 117;
-    private MyType barMyType = new MyType();
     private String barString = "barString";
+
 
     @JsonIgnore
     private int barIntIgnore = 666;

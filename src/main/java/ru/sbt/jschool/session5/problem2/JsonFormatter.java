@@ -1,7 +1,6 @@
 package ru.sbt.jschool.session5.problem2;
 
 
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -11,13 +10,14 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class Json {
-    private final static SimpleDateFormat DATE_FORMAT =  new SimpleDateFormat("dd.MM.yyyy");
+public class JsonFormatter {
+    private final static SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd.MM.yyyy");
 
     private static final Set<Class<?>> PRIMITIVE_WRAPPERS = getPrimitiveWrappers();
 
@@ -49,11 +49,11 @@ public class Json {
         return fields;
     }
 
-    private static String fieldToString(String primitiveFormat, String stringFormat, Object obj) {
+    private String fieldToString(String primitiveFormat, String stringFormat, Object obj) {
         return fieldToString(primitiveFormat, stringFormat, obj, null);
     }
 
-    private static String fieldToString(String primitiveFormat, String stringFormat, Object obj, String fieldName) {
+    private String fieldToString(String primitiveFormat, String stringFormat, Object obj, String fieldName) {
         String name = "";
         if (fieldName != null) {
             name = String.format("\"%s\":", fieldName);
@@ -62,9 +62,9 @@ public class Json {
             return name + String.format(primitiveFormat, null);
         }
         Class<?> clazz = obj.getClass();
-        if (clazz.isPrimitive()
-                || isPrimitiveWrapper(clazz)
-                || SimpleType.class.isAssignableFrom(clazz)) {
+        if (typeExtensions.containsKey(clazz)) {
+            return name + String.format(stringFormat, typeExtensions.get(clazz).format(obj));
+        } else if (clazz.isPrimitive() || isPrimitiveWrapper(clazz)) {
             if (clazz.equals(Character.class)) {
                 return name + String.format(stringFormat, obj.toString());
             }
@@ -74,13 +74,19 @@ public class Json {
         } else if (Date.class.isAssignableFrom(clazz)) {
             return name + String.format(stringFormat, DATE_FORMAT.format(obj));
         } else if (Calendar.class.isAssignableFrom(clazz)) {
-            return name + String.format(stringFormat, DATE_FORMAT.format(((Calendar)obj).getTime()));
+            return name + String.format(stringFormat, DATE_FORMAT.format(((Calendar) obj).getTime()));
         } else {
-            return name + String.format(primitiveFormat, marshal(obj));
+            return name + String.format(primitiveFormat, format(obj));
         }
     }
 
-    public static String marshal(Object object) {
+    private HashMap<Class<?>, Formatting> typeExtensions = new HashMap<>();
+
+    public <T> void addTypeExtension(Class<T> clazz, Formatting formatting) {
+        typeExtensions.put(clazz, formatting);
+    }
+
+    public String format(Object object) {
         if (object == null) {
             throw new RuntimeException("Argument for parameter 'object' of Json.marshal must not be null");
         }
@@ -109,7 +115,7 @@ public class Json {
                     Collection<?> collection = (Collection<?>) field.get(object);
                     ArrayList<String> listElements = new ArrayList<>();
                     for (Object obj : collection) {
-                        listElements.add(fieldToString("%s","\"%s\"", obj));
+                        listElements.add(fieldToString("%s", "\"%s\"", obj));
                     }
                     stringedFields.add(String.format("\"%s\":[%s]", fieldName, listElements.stream().collect(Collectors.joining(","))));
                 } else {
@@ -121,5 +127,6 @@ public class Json {
         }
         return String.format("{%s}", stringedFields.stream().collect(Collectors.joining(",")));
     }
+
 
 }

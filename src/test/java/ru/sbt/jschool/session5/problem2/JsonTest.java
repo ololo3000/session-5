@@ -70,12 +70,7 @@ public class JsonTest {
 
     @Test
     public void testNullObjectMarshall() {
-        boolean isExepted = false;
-        try {
-            new JsonFormatter().format(null);
-        } catch (RuntimeException e) {
-            isExepted = true;
-        }
-        assertEquals(true, isExepted );
+
+        assertEquals(null, new JsonFormatter().format(null) );
     }
 }

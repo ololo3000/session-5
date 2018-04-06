@@ -88,7 +88,8 @@ public class JsonFormatter {
 
     public String format(Object object) {
         if (object == null) {
-            throw new RuntimeException("Argument for parameter 'object' of Json.marshal must not be null");
+            //throw new RuntimeException("Argument for parameter 'object' of Json.marshal must not be null");
+            return null;
         }
         ArrayList<String> stringedFields = new ArrayList<>();
 

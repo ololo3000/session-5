@@ -17,27 +17,34 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class JsonFormatter {
-    private final static SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd.MM.yyyy");
+    private final static Formatting PRIMITIVE_TYPE_FORMATTER = new PrimitiveTypeFormatter();
+    private final static Formatting COLLECTION_FORMATTER = new CollectionFormatter();
+    private final static Formatting STRING_FORMATTER = new StringFormatter();
+    private final static Formatting DATE_FORMATTER = new DateFormatter();
+    private final static Formatting<Calendar> CALENDAR_FORMATTER = new CalendarFormatter();
 
-    private static final Set<Class<?>> PRIMITIVE_WRAPPERS = getPrimitiveWrappers();
+    private HashMap<Class, Formatting> typeExtensions = new HashMap<>();
+    private HashMap<Class, Formatting> baseTypeExtensions = new HashMap<>();
+    private HashMap<String, Object> ctx = new HashMap<>();
 
-    private static Set<Class<?>> getPrimitiveWrappers() {
-        Set<Class<?>> set = new HashSet<Class<?>>();
-        set.add(Boolean.class);
-        set.add(Character.class);
-        set.add(Byte.class);
-        set.add(Short.class);
-        set.add(Integer.class);
-        set.add(Long.class);
-        set.add(Float.class);
-        set.add(Double.class);
-        set.add(Void.class);
-        return set;
+    public JsonFormatter() {
+        ctx.put("nstLvl", 0);
+        typeExtensions.put(Boolean.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Character.class, STRING_FORMATTER);
+        typeExtensions.put(Byte.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Short.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Integer.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Long.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Float.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Double.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(Void.class, PRIMITIVE_TYPE_FORMATTER);
+        typeExtensions.put(String.class, STRING_FORMATTER);
+        baseTypeExtensions.put(Date.class, DATE_FORMATTER);
+        baseTypeExtensions.put(Calendar.class, CALENDAR_FORMATTER);
+        baseTypeExtensions.put(List.class, COLLECTION_FORMATTER);
+        baseTypeExtensions.put(Set.class, COLLECTION_FORMATTER);
     }
 
-    public static boolean isPrimitiveWrapper(Class<?> clazz) {
-        return PRIMITIVE_WRAPPERS.contains(clazz);
-    }
 
     private static ArrayList<Field> getFields(Object obj) {
         Class<?> clazz = obj.getClass();
@@ -49,48 +56,64 @@ public class JsonFormatter {
         return fields;
     }
 
-    private String fieldToString(String primitiveFormat, String stringFormat, Object obj) {
-        return fieldToString(primitiveFormat, stringFormat, obj, null);
+    private Formatting getBaseTypeFormatter(Class<?> clazz) {
+        for (Class<?> cls : baseTypeExtensions.keySet()) {
+            if (cls.isAssignableFrom(clazz)) {
+                return baseTypeExtensions.get(cls);
+            }
+        }
+        return null;
     }
 
-    private String fieldToString(String primitiveFormat, String stringFormat, Object obj, String fieldName) {
-        String name = "";
-        if (fieldName != null) {
-            name = String.format("\"%s\":", fieldName);
-        }
+    private String fieldToString(Object obj, String fieldName) throws IllegalAccessException {
+        String resultStr = "";
         if (obj == null) {
-            return name + String.format(primitiveFormat, null);
+            return String.format("\"%s\":%s", fieldName, null);
         }
         Class<?> clazz = obj.getClass();
+        Formatting baseTypeFormatter = getBaseTypeFormatter(clazz);
         if (typeExtensions.containsKey(clazz)) {
-            return name + String.format(stringFormat, typeExtensions.get(clazz).format(obj));
-        } else if (clazz.isPrimitive() || isPrimitiveWrapper(clazz)) {
-            if (clazz.equals(Character.class)) {
-                return name + String.format(stringFormat, obj.toString());
-            }
-            return name + String.format(primitiveFormat, obj.toString());
-        } else if (clazz.equals(String.class)) {
-            return name + String.format(stringFormat, obj);
-        } else if (Date.class.isAssignableFrom(clazz)) {
-            return name + String.format(stringFormat, DATE_FORMAT.format(obj));
-        } else if (Calendar.class.isAssignableFrom(clazz)) {
-            return name + String.format(stringFormat, DATE_FORMAT.format(((Calendar) obj).getTime()));
+            resultStr = typeExtensions.get(clazz).format(obj, this, ctx);
+        } else if (baseTypeFormatter != null) {
+            resultStr = baseTypeFormatter.format(obj, this, ctx);
         } else {
-            return name + String.format(primitiveFormat, format(obj));
+            resultStr = marshall(obj);
         }
+        return String.format("\"%s\":%s", fieldName, resultStr);
     }
 
-    private HashMap<Class<?>, Formatting> typeExtensions = new HashMap<>();
 
-    public <T> void addTypeExtension(Class<T> clazz, Formatting formatting) {
-        typeExtensions.put(clazz, formatting);
+    public <T> void addTypeExtension(Class<T> clazz, Formatting<T> formatter) {
+        typeExtensions.put(clazz, formatter);
     }
 
-    public String format(Object object) {
+    public <T> void addBaseTypeExtension(Class<T> clazz, Formatting<T> formatter) {
+        baseTypeExtensions.put(clazz, formatter);
+    }
+
+    public String repeatNTimes(String s, int n) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            builder.append(s);
+        }
+        return builder.toString();
+    }
+
+    public String marshall(Object object) {
         if (object == null) {
-            //throw new RuntimeException("Argument for parameter 'object' of Json.marshal must not be null");
             return null;
         }
+
+        if (typeExtensions.containsKey(object.getClass())) {
+            return typeExtensions.get(object.getClass()).format(object, this, ctx);
+        }
+
+        Formatting baseTypeFormatter = getBaseTypeFormatter(object.getClass());
+
+        if (baseTypeFormatter != null) {
+            return baseTypeFormatter.format(object, this, ctx);
+        }
+
         ArrayList<String> stringedFields = new ArrayList<>();
 
         for (Field field : getFields(object)) {
@@ -98,12 +121,7 @@ public class JsonFormatter {
                 continue;
             }
             field.setAccessible(true);
-            Annotation ignoreAnnotation = field.getAnnotation(JsonIgnore.class);
             Annotation setterAnnotation = field.getAnnotation(JsonProperty.class);
-            if (ignoreAnnotation != null) {
-                continue;
-            }
-
             String fieldName;
             if (setterAnnotation != null) {
                 fieldName = ((JsonProperty) setterAnnotation).name();
@@ -112,21 +130,14 @@ public class JsonFormatter {
             }
 
             try {
-                if (List.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(field.getType())) {
-                    Collection<?> collection = (Collection<?>) field.get(object);
-                    ArrayList<String> listElements = new ArrayList<>();
-                    for (Object obj : collection) {
-                        listElements.add(fieldToString("%s", "\"%s\"", obj));
-                    }
-                    stringedFields.add(String.format("\"%s\":[%s]", fieldName, listElements.stream().collect(Collectors.joining(","))));
-                } else {
-                    stringedFields.add(fieldToString("%s", "\"%s\"", field.get(object), fieldName));
-                }
+                ctx.put("nstLvl", (Integer) ctx.get("nstLvl") + 1);
+                stringedFields.add(repeatNTimes("\t", (Integer) ctx.get("nstLvl")) + fieldToString(field.get(object), fieldName));
+                ctx.put("nstLvl", (Integer) ctx.get("nstLvl") - 1);
             } catch (IllegalAccessException e) {
-                throw new RuntimeException("Unable to access to field: " + field.getName() + " of class: " + field.getType().getName(), e);
+                throw new RuntimeException("Unable access to field: " + field.getName() + " of class: " + field.getType().getName(), e);
             }
         }
-        return String.format("{%s}", stringedFields.stream().collect(Collectors.joining(",")));
+        return String.format("{\n%s\n" + repeatNTimes("\t", (Integer) ctx.get("nstLvl")) + "}", stringedFields.stream().collect(Collectors.joining(",\n")));
     }
 
 

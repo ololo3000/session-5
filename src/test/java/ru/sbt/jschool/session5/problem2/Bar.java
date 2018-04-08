@@ -10,11 +10,17 @@ import java.util.Set;
 
 public class Bar extends BaseBase{
     public Bar() {
-        barChildList.add(new Child());
-        barChildList.add(new Child());
+        barChildList1.add(new Child());
+        barChildList1.add(new Child());
+        barChildList2.add(new Child());
+        barChildList2.add(new Child());
+        barChildList.add(barChildList1);
+        barChildList.add(barChildList1);
+        barChildList.add(null);
         barIntegerSet.add(1);
         barIntegerSet.add(2);
         barIntegerSet.add(3);
+        barIntegerSet.add(null);
     }
 
     transient Integer barTransientInt = 666;
@@ -32,8 +38,7 @@ public class Bar extends BaseBase{
     private String barString = "barString";
 
 
-    @JsonIgnore
-    private int barIntIgnore = 666;
+    transient int barIntIgnore = 666;
     @JsonProperty(name = "barChangedName")
     private int barIntNotValidName = 666;
 
@@ -52,7 +57,11 @@ public class Bar extends BaseBase{
     private Child barChild = new Child();
 
     private Set<Integer> barIntegerSet = new HashSet<>();
-    private List<Child> barChildList = new ArrayList<>();
+    private List<List<Child>> barChildList = new ArrayList<>();
+    private List<List<Child>> barChildList3 = null;
+
+    transient private List<Child> barChildList1 = new ArrayList<>();
+    transient private List<Child> barChildList2 = new ArrayList<>();
 
 
 

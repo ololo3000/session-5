@@ -65,7 +65,7 @@ public class JsonFormatter {
         return null;
     }
 
-    private String fieldToString(Object obj, String fieldName) throws IllegalAccessException {
+    private String fieldToString(Object obj, String fieldName) {
         String resultStr = "";
         if (obj == null) {
             return String.format("\"%s\":%s", fieldName, null);

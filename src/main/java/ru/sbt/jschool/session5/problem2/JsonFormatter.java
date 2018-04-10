@@ -17,10 +17,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class JsonFormatter {
-    private final static Formatting PRIMITIVE_TYPE_FORMATTER = new PrimitiveTypeFormatter();
-    private final static Formatting COLLECTION_FORMATTER = new CollectionFormatter();
-    private final static Formatting STRING_FORMATTER = new StringFormatter();
-    private final static Formatting DATE_FORMATTER = new DateFormatter();
+    private final static Formatting<Object> PRIMITIVE_TYPE_FORMATTER = new PrimitiveTypeFormatter();
+    private final static Formatting<Collection<?>> COLLECTION_FORMATTER = new CollectionFormatter();
+    private final static Formatting<Object> STRING_FORMATTER = new StringFormatter();
+    private final static Formatting<Date> DATE_FORMATTER = new DateFormatter();
     private final static Formatting<Calendar> CALENDAR_FORMATTER = new CalendarFormatter();
 
     private HashMap<Class, Formatting> typeExtensions = new HashMap<>();
